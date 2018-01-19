@@ -1,0 +1,12 @@
+{
+    "http" : {
+        "address": "127.0.0.1",
+        "port": "8123",
+        "combinedLog" : {
+            "path" : "/tmp/ijah-http-access-log"
+        },
+        "appLog": {
+            "path" : "/tmp/ijah-http-app-log"
+        }
+    }
+}
