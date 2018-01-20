@@ -55,11 +55,20 @@ type SaleValueItem struct {
 	Profit    float64
 }
 
+//NewInventory returns a new inventory service object
+func NewInventory(stockMapper, purchaseMapper, salesMapper datamapper.DataMapper) *Inventory {
+	return &Inventory{
+		StockDatamapper:    stockMapper,
+		PurchaseDatamapper: purchaseMapper,
+		SalesDatamapper:    salesMapper,
+	}
+}
+
 //Inventory is a service object dealing with inventory business domain
 type Inventory struct {
-	StockDatamapper    *datamapper.Stock    `inject:"stockDatamapper"`
-	PurchaseDatamapper *datamapper.Purchase `inject:"purchaseDatamapper"`
-	SalesDatamapper    *datamapper.Sale     `inject:"salesDatamapper"`
+	StockDatamapper    datamapper.DataMapper `inject:"stockDatamapper"`
+	PurchaseDatamapper datamapper.DataMapper `inject:"purchaseDatamapper"`
+	SalesDatamapper    datamapper.DataMapper `inject:"salesDatamapper"`
 }
 
 //GetItemInfo is a function for obtaining information of an item
@@ -259,7 +268,7 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 		EndDate:   endTime,
 	}
 	//get sales data from db
-	salesData, err := i.SalesDatamapper.FindByDateRange(startTime, endTime)
+	salesData, err := i.SalesDatamapper.FindByDoneStatusAndDateRange(startTime, endTime)
 	if err != nil {
 		if err.Err == datamapper.ErrNotFound {
 			//no data

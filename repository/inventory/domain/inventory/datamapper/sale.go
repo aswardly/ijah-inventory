@@ -198,13 +198,13 @@ func (s *Sale) FindAll() ([]model.Model, *errors.Error) {
 	return returnedRow, nil
 }
 
-//FindByDateRange is a function for finding sale record based on date range
-//TODO: Refactor this and FindAll
-func (s *Sale) FindByDateRange(startDate, endDate time.Time) ([]model.Model, *errors.Error) {
+//FindByDoneStatusAndDateRange is a function for finding success/done sale record based on date range
+//TODO: Refactor this
+func (s *Sale) FindByDoneStatusAndDateRange(startDate, endDate time.Time) ([]model.Model, *errors.Error) {
 	startDateString := startDate.Format(dateFormat)
 	endDateString := endDate.Format(dateFormat)
 
-	stmt, err := s.db.Prepare("SELECT INVOICE_ID, DATETIME(SALE_DATE), STATUS, NOTE FROM sales WHERE SALE_DATE BETWEEN ? AND ? ORDER BY INVOICE_ID ASC")
+	stmt, err := s.db.Prepare("SELECT INVOICE_ID, DATETIME(SALE_DATE), STATUS, NOTE FROM sales WHERE STATUS='S' AND SALE_DATE BETWEEN ? AND ? ORDER BY INVOICE_ID ASC")
 	if err != nil {
 		return nil, errors.Wrap(err, 0)
 	}
