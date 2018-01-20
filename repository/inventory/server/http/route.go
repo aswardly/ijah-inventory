@@ -13,4 +13,16 @@ func (s *Server) routeSetup() {
 	indexRoute := s.router.Path("/")
 	indexRoute.Methods("GET")
 	indexRoute.Handler(handler.NewDummyHandler(s.sc))
+
+	testRoute := s.router.Path("/test")
+	testRoute.Methods("GET")
+	serviceObj, found := s.sc.GetService("testHandler")
+	if false == found {
+		panic("service 'testhandler' not found")
+	}
+	testHandler, ok := serviceObj.(*handler.TestHandler)
+	if false == ok {
+		panic("failed asserting 'testHandler'")
+	}
+	testRoute.Handler(testHandler)
 }

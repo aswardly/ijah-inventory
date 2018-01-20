@@ -3,10 +3,10 @@
         "address": "127.0.0.1",
         "port": "8123",
         "combinedLog" : {
-            "path" : "/tmp/ijah-http-access-log"
+            "path" : "/tmp/http-access-log.txt"
         },
         "appLog": {
-            "path" : "/tmp/ijah-http-app-log"
+            "path" : "/tmp/ijah-http-app-log.txt"
         }
     }
 }
