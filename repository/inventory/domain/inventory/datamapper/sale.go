@@ -306,28 +306,40 @@ func (s *Sale) Insert(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot insert, model with id: %v already exists", salesModel.GetID()), 0)
 	}
 
-	stmt, err := s.db.Prepare("INSERT INTO sales(INVOICE_ID, SALE_DATE, STATUS, NOTE) values(?,?,?,?)")
+	//start transaction
+	tx, err := s.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	stmt, err := tx.Prepare("INSERT INTO sales(INVOICE_ID, SALE_DATE, STATUS, NOTE) values(?,?,?,?)")
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, 0)
+	}
+	defer stmt.Close()
+
 	dateString := salesModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(salesModelObj.InvoiceID, dateString, salesModelObj.Status, salesModelObj.Note)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
 	//insert the items
 	for _, val := range salesModelObj.Items {
-		itemStmt, err := s.db.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
+		itemStmt, err := tx.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
 		if err != nil {
+			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
+		defer itemStmt.Close()
 		_, err = itemStmt.Exec(salesModelObj.InvoiceID, val.Sku, val.Quantity, val.BuyPrice, val.SellPrice)
 		if err != nil {
+			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 	}
-
+	tx.Commit()
 	return nil
 }
 
@@ -343,13 +355,21 @@ func (s *Sale) Update(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", salesModel.GetID()), 0)
 	}
 
-	stmt, err := s.db.Prepare("UPDATE sales SET SALE_DATE=?, STATUS=?, NOTE=? WHERE INVOICE_ID=?")
+	//start transaction
+	tx, err := s.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	stmt, err := tx.Prepare("UPDATE sales SET SALE_DATE=?, STATUS=?, NOTE=? WHERE INVOICE_ID=?")
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, 0)
+	}
+	defer stmt.Close()
 	dateString := salesModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(dateString, salesModelObj.Status, salesModelObj.Note, salesModelObj.InvoiceID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -357,21 +377,27 @@ func (s *Sale) Update(salesModel model.Model) *errors.Error {
 	for _, val := range salesModelObj.Items {
 		var itemStmt *sql.Stmt
 		if false == val.GetLoadedFromStorage() {
-			itemStmt, err = s.db.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
+			itemStmt, err = tx.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
+			defer itemStmt.Close()
 			_, err = itemStmt.Exec(salesModelObj.InvoiceID, val.Sku, val.Quantity, val.BuyPrice, val.SellPrice)
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		} else {
-			itemStmt, err = s.db.Prepare("UPDATE sales_items SET QUANTITY=?, BUY_PRICE=?, SELL_PRICE=? WHERE ID=?")
+			itemStmt, err = tx.Prepare("UPDATE sales_items SET QUANTITY=?, BUY_PRICE=?, SELL_PRICE=? WHERE ID=?")
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
+			defer itemStmt.Close()
 			_, err = itemStmt.Exec(val.Quantity, val.BuyPrice, val.SellPrice, val.GetID())
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		}
@@ -391,26 +417,38 @@ func (s *Sale) Delete(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", salesModel.GetID()), 0)
 	}
 
-	//delete items
-	itemStmt, err := s.db.Prepare("DELETE FROM sales_items WHERE INVOICE_ID=?")
+	//start transaction
+	tx, err := s.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+
+	//delete items
+	itemStmt, err := tx.Prepare("DELETE FROM sales_items WHERE INVOICE_ID=?")
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, 0)
+	}
+	defer itemStmt.Close()
 	_, err = itemStmt.Exec(salesModelObj.InvoiceID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
 	//delete the model
-	stmt, err := s.db.Prepare("DELETE FROM sales WHERE INVOICE_ID=?")
+	stmt, err := tx.Prepare("DELETE FROM sales WHERE INVOICE_ID=?")
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(salesModelObj.InvoiceID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
-
+	tx.Commit()
 	return nil
 }
 

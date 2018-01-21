@@ -158,20 +158,10 @@ func (i *Inventory) CreateSale(invoiceNo, note string, items []SaleItem) (bool, 
 		newSalesItems[val.Sku] = newItem
 	}
 	newSale.Items = newSalesItems
-
-	//save new sale (requires db transaction)
-	//TODO: Refactor this, this is wrong because the transaction is potentially not isolated
-	//the datamapper method Insert() performs query not on the db.Tx object, but possibly on physically different connection
-	tx, err := i.DB.Begin()
+	err := i.SalesDatamapper.Insert(newSale)
 	if err != nil {
 		return false, errors.Wrap(err, 0)
 	}
-	err = i.SalesDatamapper.Insert(newSale)
-	if err != nil {
-		tx.Rollback()
-		return false, errors.Wrap(err, 0)
-	}
-	tx.Commit()
 	return true, nil
 }
 
@@ -197,7 +187,11 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 		return false, errors.Wrap(fmt.Errorf("Failed asserting returned model"), 0)
 	}
 
-	if err != nil {
+	//TODO: Refactor this, the latest idea was injecting the *sql.DB object to this service struct, so this service can directly create a *sql.Tx object for handlng transaction,
+	//but this is wrong because the transaction is potentially not isolated due to the datamapper method Save() possibly performs query not on the db.Tx object, but on physically different connection
+	//see: http://go-database-sql.org/modifying.html
+	tx, errt := i.DB.Begin()
+	if errt != nil {
 		return false, errors.Wrap(err, 0)
 	}
 	//sale status updated to Done from Other status
@@ -218,6 +212,8 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 				return false, errors.Wrap(fmt.Errorf("Sku: %v doesn't have enough stock", saleItemObj.Sku), 0)
 			}
 			//update stock
+			//TODO: Problem: the transaction is performed not only on sales datamapper, but also stock datamapper (need an isolated *sql.Tx crossing different datamappers)
+			//Datamapper refactoring needed
 			saleItemObj.Quantity -= val.Quantity
 			err = i.StockDatamapper.Update(saleItemObj)
 			if err != nil {
@@ -225,14 +221,9 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 			}
 		}
 	}
-	//update sale (requires db transaction)
+	//update sale
 	foundSaleObj.Status = status
-	//TODO: Refactor this, this is wrong because the transaction is potentially not isolated
-	//the datamapper method Save() performs query not on the db.Tx object, but possibly on physically different connection
-	tx, errt := i.DB.Begin()
-	if errt != nil {
-		return false, errors.Wrap(err, 0)
-	}
+
 	err = i.SalesDatamapper.Save(foundSaleObj)
 	if err != nil {
 		tx.Rollback()

@@ -3,7 +3,6 @@ package service_test
 
 import (
 	"database/sql"
-	"fmt"
 	"ijah-inventory/repository/inventory/domain/inventory/model"
 	"ijah-inventory/repository/inventory/domain/inventory/service"
 
@@ -155,8 +154,6 @@ func TestCreateSale(t *testing.T) {
 	dbMock.ExpectBegin()
 	dbMock.ExpectCommit()
 	ok, errt := successfulCreateSaleInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
-	fmt.Printf("%+v\n", errt)
-	fmt.Printf("%+v\n", ok)
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)
@@ -189,7 +186,6 @@ func TestUpdateSale(t *testing.T) {
 	dbMock.ExpectBegin()
 	dbMock.ExpectCommit()
 	ok, err := inventoryService.UpdateSale("dummyInvoice", model.SalesStatusDone)
-	fmt.Printf("errx :%+v\n", err)
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)

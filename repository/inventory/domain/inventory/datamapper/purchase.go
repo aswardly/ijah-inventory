@@ -213,13 +213,21 @@ func (p *Purchase) Insert(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot insert, model with id: %v already exists", purchaseModel.GetID()), 0)
 	}
 
-	stmt, err := p.db.Prepare("INSERT INTO purchase(PURCHASE_ID, PURCHASE_DATE, STATUS, NOTE) values(?,?,?,?)")
+	//start transaction
+	tx, err := p.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	stmt, err := tx.Prepare("INSERT INTO purchase(PURCHASE_ID, PURCHASE_DATE, STATUS, NOTE) values(?,?,?,?)")
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, 0)
+	}
+	defer stmt.Close()
 	dateString := purchaseModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(purchaseModelObj.PurchaseID, dateString, purchaseModelObj.Status, purchaseModelObj.Note)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -227,14 +235,17 @@ func (p *Purchase) Insert(purchaseModel model.Model) *errors.Error {
 	for _, val := range purchaseModelObj.Items {
 		itemStmt, err := p.db.Prepare("INSERT INTO purchase_items(PURCHASE_ID, SKU, QUANTITY, BUY_PRICE, NOTE) values(?,?,?,?,?)")
 		if err != nil {
+			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
+		defer itemStmt.Close()
 		_, err = itemStmt.Exec(purchaseModelObj.PurchaseID, val.Sku, val.Quantity, val.BuyPrice, val.Note)
 		if err != nil {
+			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 	}
-
+	tx.Commit()
 	return nil
 }
 
@@ -250,13 +261,20 @@ func (p *Purchase) Update(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", purchaseModel.GetID()), 0)
 	}
 
-	stmt, err := p.db.Prepare("UPDATE purchase SET DATE=?, STATUS=?, NOTE=? WHERE PURCHASE_ID=?")
+	//start transaction
+	tx, err := p.db.Begin()
 	if err != nil {
+		return errors.Wrap(err, 0)
+	}
+	stmt, err := tx.Prepare("UPDATE purchase SET DATE=?, STATUS=?, NOTE=? WHERE PURCHASE_ID=?")
+	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	dateString := purchaseModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(dateString, purchaseModelObj.Status, purchaseModelObj.Note, purchaseModelObj.PurchaseID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -264,26 +282,32 @@ func (p *Purchase) Update(purchaseModel model.Model) *errors.Error {
 	for _, val := range purchaseModelObj.Items {
 		var itemStmt *sql.Stmt
 		if false == val.GetLoadedFromStorage() {
-			itemStmt, err = p.db.Prepare("INSERT INTO purchase_items(PURCHASE_ID, SKU, QUANTITY, BUY_PRICE, NOTE) values(?,?,?,?,?)")
+			itemStmt, err = tx.Prepare("INSERT INTO purchase_items(PURCHASE_ID, SKU, QUANTITY, BUY_PRICE, NOTE) values(?,?,?,?,?)")
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
+			defer itemStmt.Close()
 			_, err = itemStmt.Exec(purchaseModelObj.PurchaseID, val.Sku, val.Quantity, val.BuyPrice, val.Note)
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		} else {
-			itemStmt, err = p.db.Prepare("UPDATE purchase_items SET QUANTITY=?, BUY_PRICE=?, NOTE=? WHERE ID=?")
+			itemStmt, err = tx.Prepare("UPDATE purchase_items SET QUANTITY=?, BUY_PRICE=?, NOTE=? WHERE ID=?")
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
+			defer itemStmt.Close()
 			_, err = itemStmt.Exec(val.Quantity, val.BuyPrice, val.Note, val.GetID())
 			if err != nil {
+				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		}
 	}
-
+	tx.Commit()
 	return nil
 }
 
@@ -299,26 +323,38 @@ func (p *Purchase) Delete(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot delete, model with id: %v doesn't exist", purchaseModel.GetID()), 0)
 	}
 
-	//delete items
-	itemStmt, err := p.db.Prepare("DELETE FROM purchase_items WHERE PURCHASE_ID=?")
+	//start transaction
+	tx, err := p.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+
+	//delete items
+	itemStmt, err := tx.Prepare("DELETE FROM purchase_items WHERE PURCHASE_ID=?")
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, 0)
+	}
+	defer itemStmt.Close()
 	_, err = itemStmt.Exec(purchaseModelObj.PurchaseID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
 	//delete the model
-	stmt, err := p.db.Prepare("DELETE FROM purchase WHERE PURCHASE_ID=?")
+	stmt, err := tx.Prepare("DELETE FROM purchase WHERE PURCHASE_ID=?")
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(purchaseModelObj.PurchaseID)
 	if err != nil {
+		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
-
+	tx.Commit()
 	return nil
 }
 
