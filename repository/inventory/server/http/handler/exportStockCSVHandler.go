@@ -17,7 +17,7 @@ type ExportStockCSVHandler struct {
 }
 
 //csvDateLayout is the layout used for formatting time.Time object to string in csv output
-const csvDateLayout = "2006-01-02"
+const csvDateLayout = "2006/01/02"
 
 //ExportStockCSVHandle is the implementation of http handler for a ExportStockCSVHandler object
 func (h *ExportStockCSVHandler) ExportStockCSVHandle(w http.ResponseWriter, r *http.Request) error {
@@ -33,13 +33,18 @@ func (h *ExportStockCSVHandler) ExportStockCSVHandle(w http.ResponseWriter, r *h
 	csvString = make([][]string, 0)
 
 	//1st row is for summary data
+	//summary data order:
+	//export date, total item kind, total item quantity, total item amount (accumulated buy price * quantity for every item)
 	firstRow := make([]string, 0)
 	firstRow = append(firstRow, stockData.Date.Format(csvDateLayout))
 	firstRow = append(firstRow, strconv.Itoa(stockData.TotalItemKind))
 	firstRow = append(firstRow, strconv.FormatInt(stockData.TotalQuantity, 10))
 	firstRow = append(firstRow, strconv.FormatFloat(stockData.TotalAmount, 'f', 2, 64))
 	csvString = append(csvString, firstRow)
+
 	//the remaining rows are for the items
+	//data order:
+	//sku, quantity, buy price, total amount (buy price * quantity)
 	for _, val := range stockData.Items {
 		quantityStr := strconv.FormatInt(val.Quantity, 10)
 		buyPriceStr := strconv.FormatFloat(val.BuyPrice, 'f', 2, 64)
@@ -52,8 +57,6 @@ func (h *ExportStockCSVHandler) ExportStockCSVHandle(w http.ResponseWriter, r *h
 		newRow = append(newRow, totalAmountStr)
 		csvString = append(csvString, newRow)
 	}
-
-	//fmt.Printf("csv data: %+v\n", csvString)
 
 	//create csv writer
 	buff := &bytes.Buffer{} //placeholder buffer
@@ -69,41 +72,12 @@ func (h *ExportStockCSVHandler) ExportStockCSVHandle(w http.ResponseWriter, r *h
 	//output the csv
 	now := time.Now()
 	w.Header().Set("Content-Description", "File Transfer")
-	w.Header().Set("Content-Disposition", "attachment; filename=StockValue"+now.Format(csvDateLayout)+".csv")
+	w.Header().Set("Content-Disposition", "attachment; filename=StockValue_"+now.Format(csvDateLayout)+".csv")
 	_, errOutput := buff.WriteTo(w)
 	if errOutput != nil {
 		return composeError(errOutput)
 	}
 	return nil
-	/*
-		record := []string{"test1", "test2", "test3"} // just some test data to use for the wr.Writer() method below.
-
-
-		wr := csv.NewWriter(b)     // creates a csv writer that uses the io buffer.
-		for i := 0; i < 100; i++ { // make a loop for 100 rows just for testing purposes
-			wr.Write(record) // converts array of string to comma seperated values for 1 row.
-		}
-		wr.Flush() // writes the csv writer data to  the buffered data io writer(b(bytes.buffer))
-
-		ctx.ResponseWriter.Header().Set("Content-Type", "text/csv") // setting the content type header to text/csv
-
-		ctx.ResponseWriter.Header().Set("Content-Type", "text/csv")
-		ctx.ResponseWriter.Header().Set("Content-Disposition", "attachment;filename=TheCSVFileName.csv")
-		ctx.ResponseWriter.Write(b.Bytes())
-
-		//compose successful response
-		response := SimpleResponseStruct{}
-		response.Code = ErrCodeSuccessful
-		response.Message = "Inquiry successful"
-		response.Data = stockObj
-
-		successfulResponse, statusError := composeJSONResponse(response)
-		if statusError != nil {
-			return statusError
-		}
-		//else no problem in json marshalling the response
-		w.Write([]byte(successfulResponse))
-	*/
 }
 
 //StartUp allows the handler to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
