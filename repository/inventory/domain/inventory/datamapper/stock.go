@@ -19,7 +19,6 @@ var (
 //Stock is a struct of datamapper for stock domain model
 type Stock struct {
 	db *sql.DB
-	tx *sql.Tx
 }
 
 //NewStock creates a new Stock datamapper and returns a pointer to it
@@ -192,42 +191,6 @@ func (s *Stock) Save(stockModel model.Model) *errors.Error {
 		err = s.Insert(stockModel)
 	}
 	return err
-}
-
-//BeginTransaction starts a transaction on the connected session
-func (s *Stock) BeginTransaction() *errors.Error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = tx
-	return nil
-}
-
-//Commit commits the transaction
-func (s *Stock) Commit() *errors.Error {
-	if s.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't commit, no transaction has been started"), 0)
-	}
-	err := s.tx.Commit()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = nil
-	return nil
-}
-
-//Rollback cancels the transaction
-func (s *Stock) Rollback() *errors.Error {
-	if s.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't rollback, no transaction has been started"), 0)
-	}
-	err := s.tx.Rollback()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = nil
-	return nil
 }
 
 //StartUp allows the datamapper to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)

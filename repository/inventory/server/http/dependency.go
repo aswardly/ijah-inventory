@@ -48,6 +48,9 @@ func (s *Server) setup() {
 		panic(fmt.Sprintf("Database initialization failed: %v", err))
 	}
 
+	//register the db session as a service object
+	s.sc.RegisterService("dbSession", dbSession)
+
 	//stock datamapper
 	stockDatamapper := datamapper.NewStock(dbSession)
 	s.sc.RegisterService("stockDatamapper", stockDatamapper)

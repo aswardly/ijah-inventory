@@ -15,7 +15,6 @@ import (
 //Sale is a struct of datamapper for purchase domain model
 type Sale struct {
 	db *sql.DB
-	tx *sql.Tx
 }
 
 //NewSale creates a new Purchase datamapper and returns a pointer to it
@@ -307,23 +306,13 @@ func (s *Sale) Insert(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot insert, model with id: %v already exists", salesModel.GetID()), 0)
 	}
 
-	//start db transaction
-	if s.tx == nil {
-		tx, err := s.db.Begin()
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
-		s.tx = tx
-	}
 	stmt, err := s.db.Prepare("INSERT INTO sales(INVOICE_ID, SALE_DATE, STATUS, NOTE) values(?,?,?,?)")
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	dateString := salesModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(salesModelObj.InvoiceID, dateString, salesModelObj.Status, salesModelObj.Note)
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -331,16 +320,13 @@ func (s *Sale) Insert(salesModel model.Model) *errors.Error {
 	for _, val := range salesModelObj.Items {
 		itemStmt, err := s.db.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
 		if err != nil {
-			s.tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 		_, err = itemStmt.Exec(salesModelObj.InvoiceID, val.Sku, val.Quantity, val.BuyPrice, val.SellPrice)
 		if err != nil {
-			s.tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 	}
-	s.tx.Commit()
 
 	return nil
 }
@@ -357,24 +343,13 @@ func (s *Sale) Update(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", salesModel.GetID()), 0)
 	}
 
-	//start db transaction
-	if s.tx == nil {
-		tx, err := s.db.Begin()
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
-		s.tx = tx
-	}
-
 	stmt, err := s.db.Prepare("UPDATE sales SET SALE_DATE=?, STATUS=?, NOTE=? WHERE INVOICE_ID=?")
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	dateString := salesModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(dateString, salesModelObj.Status, salesModelObj.Note, salesModelObj.InvoiceID)
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -384,28 +359,23 @@ func (s *Sale) Update(salesModel model.Model) *errors.Error {
 		if false == val.GetLoadedFromStorage() {
 			itemStmt, err = s.db.Prepare("INSERT INTO sales_items(INVOICE_ID, SKU, QUANTITY, BUY_PRICE, SELL_PRICE) values(?,?,?,?,?)")
 			if err != nil {
-				s.tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 			_, err = itemStmt.Exec(salesModelObj.InvoiceID, val.Sku, val.Quantity, val.BuyPrice, val.SellPrice)
 			if err != nil {
-				s.tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		} else {
 			itemStmt, err = s.db.Prepare("UPDATE sales_items SET QUANTITY=?, BUY_PRICE=?, SELL_PRICE=? WHERE ID=?")
 			if err != nil {
-				s.tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 			_, err = itemStmt.Exec(val.Quantity, val.BuyPrice, val.SellPrice, val.GetID())
 			if err != nil {
-				s.tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		}
 	}
-	s.tx.Commit()
 
 	return nil
 }
@@ -421,40 +391,25 @@ func (s *Sale) Delete(salesModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", salesModel.GetID()), 0)
 	}
 
-	//start db transaction
-	//start db transaction
-	if s.tx == nil {
-		tx, err := s.db.Begin()
-		if err != nil {
-			return errors.Wrap(err, 0)
-		}
-		s.tx = tx
-	}
-
 	//delete items
 	itemStmt, err := s.db.Prepare("DELETE FROM sales_items WHERE INVOICE_ID=?")
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	_, err = itemStmt.Exec(salesModelObj.InvoiceID)
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
 	//delete the model
 	stmt, err := s.db.Prepare("DELETE FROM sales WHERE INVOICE_ID=?")
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	_, err = stmt.Exec(salesModelObj.InvoiceID)
 	if err != nil {
-		s.tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
-	s.tx.Commit()
 
 	return nil
 }
@@ -470,42 +425,6 @@ func (s *Sale) Save(salesModel model.Model) *errors.Error {
 		err = s.Insert(salesModel)
 	}
 	return err
-}
-
-//BeginTransaction starts a transaction on the connected session
-func (s *Sale) BeginTransaction() *errors.Error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = tx
-	return nil
-}
-
-//Commit commits the transaction
-func (s *Sale) Commit() *errors.Error {
-	if s.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't commit, no transaction has been started"), 0)
-	}
-	err := s.tx.Commit()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = nil
-	return nil
-}
-
-//Rollback cancels the transaction
-func (s *Sale) Rollback() *errors.Error {
-	if s.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't rollback, no transaction has been started"), 0)
-	}
-	err := s.tx.Rollback()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	s.tx = nil
-	return nil
 }
 
 //StartUp allows the datamapper to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)

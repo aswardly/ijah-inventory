@@ -2,6 +2,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -56,11 +57,14 @@ type SaleValueItem struct {
 }
 
 //NewInventory returns a new inventory service object
-func NewInventory(stockMapper, purchaseMapper, salesMapper datamapper.DataMapper) *Inventory {
+func NewInventory(stockMapper, purchaseMapper, salesMapper datamapper.DataMapper, db *sql.DB) *Inventory {
+	//TODO: the db session injected here must be the same as the db session used by injected datamappers, so database transactions used here is on the same db connection
+	//Refactor so this validation can be performed here
 	return &Inventory{
 		StockDatamapper:    stockMapper,
 		PurchaseDatamapper: purchaseMapper,
 		SalesDatamapper:    salesMapper,
+		DB:                 db,
 	}
 }
 
@@ -69,6 +73,7 @@ type Inventory struct {
 	StockDatamapper    datamapper.DataMapper `inject:"stockDatamapper"`
 	PurchaseDatamapper datamapper.DataMapper `inject:"purchaseDatamapper"`
 	SalesDatamapper    datamapper.DataMapper `inject:"salesDatamapper"`
+	DB                 *sql.DB               `inject:"dbSession"`
 }
 
 //GetItemInfo is a function for obtaining information of an item
@@ -110,7 +115,7 @@ func (i *Inventory) UpdateSKU(sku string, quantity int64, buyPrice, sellPrice fl
 	return i.StockDatamapper.Update(stockObj)
 }
 
-//CreateSale is a fucntion for creating a new sale
+//CreateSale is a function for creating a new sale
 func (i *Inventory) CreateSale(invoiceNo, note string, items []SaleItem) (bool, *errors.Error) {
 	existingSale, _ := i.SalesDatamapper.FindByID(invoiceNo)
 	if existingSale != nil {
@@ -154,11 +159,17 @@ func (i *Inventory) CreateSale(invoiceNo, note string, items []SaleItem) (bool, 
 	}
 	newSale.Items = newSalesItems
 
-	//save new sale
-	err := i.SalesDatamapper.Insert(newSale)
+	//save new sale (requires db transaction)
+	tx, err := i.DB.Begin()
 	if err != nil {
 		return false, errors.Wrap(err, 0)
 	}
+	err = i.SalesDatamapper.Insert(newSale)
+	if err != nil {
+		tx.Rollback()
+		return false, errors.Wrap(err, 0)
+	}
+	tx.Commit()
 	return true, nil
 }
 
@@ -184,8 +195,6 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 		return false, errors.Wrap(fmt.Errorf("Failed asserting returned model"), 0)
 	}
 
-	//note: stock datamapper and sale datamapper uses the same db session
-	err = i.SalesDatamapper.BeginTransaction()
 	if err != nil {
 		return false, errors.Wrap(err, 0)
 	}
@@ -195,38 +204,38 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 			//update stock quantity
 			saleItem, err := i.StockDatamapper.FindByID(val.Sku)
 			if err != nil {
-				i.SalesDatamapper.Rollback()
 				return false, errors.Wrap(err, 0)
 			}
 
 			saleItemObj, ok := saleItem.(*model.Stock)
 			if false == ok {
-				i.SalesDatamapper.Rollback()
 				return false, errors.Wrap(fmt.Errorf("Failed asserting stock"), 0)
 			}
 
 			if saleItemObj.Quantity < val.Quantity {
-				i.SalesDatamapper.Rollback()
 				return false, errors.Wrap(fmt.Errorf("Sku: %v doesn't have enough stock", saleItemObj.Sku), 0)
 			}
 			//update stock
 			saleItemObj.Quantity -= val.Quantity
 			err = i.StockDatamapper.Update(saleItemObj)
 			if err != nil {
-				i.SalesDatamapper.Rollback()
 				return false, errors.Wrap(fmt.Errorf("Sku: %v stock update failed", saleItemObj.Sku), 0)
 			}
 		}
 	}
-	//update sale
+	//update sale (requires db transaction)
 	foundSaleObj.Status = status
 
-	err = i.SalesDatamapper.Save(foundSaleObj)
-	if err != nil {
-		i.SalesDatamapper.Rollback()
+	tx, errt := i.DB.Begin()
+	if errt != nil {
 		return false, errors.Wrap(err, 0)
 	}
-	i.SalesDatamapper.Commit()
+	err = i.SalesDatamapper.Save(foundSaleObj)
+	if err != nil {
+		tx.Rollback()
+		return false, errors.Wrap(err, 0)
+	}
+	tx.Commit()
 	return true, nil
 }
 
@@ -279,25 +288,16 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 	if !(startTime.Before(endTime) || startTime.Equal(endTime)) {
 		return nil, errors.Wrap(fmt.Errorf("Invalid start date %v and end date %v from param", startTime.Format("2006-01-02"), endTime.Format("2006-01-02")), 0)
 	}
-
 	salesValue := &SaleValue{
 		StartDate: startTime,
 		EndDate:   endTime,
 	}
 	//get sales data from db
-
-	//TODO: refactor this,
-	//we need to type assert i.salesDataMapper to datamapper.saleMapper, since we need to execute method FindByDoneStatusAndDateRange
-	//but got problem with unit test (a struct MockSaleMapper that implements DataMapper fails type assertion, since it is asserted as MockSaleMapper, not datamapper.Sale)
-	salesDatamapper := i.SalesDatamapper
-	//fmt.Printf("%T, %v\n", i.SalesDatamapper, i.SalesDatamapper)
-	/*salesDatamapper, ok := i.SalesDatamapper.(*datamapper.Sale)
-	if false == ok {
-		return nil, errors.Wrap(fmt.Errorf("Failed asserting sales datamapper"), 0)
+	salesDatamapper, ok := i.SalesDatamapper.(*datamapper.Sale)
+	if ok == false {
+		return nil, errors.Wrap(fmt.Errorf("Failed asserting to *datamapper.Sale"), 0)
 	}
-	*/
-	//salesData, err := salesDatamapper.FindByDoneStatusAndDateRange(startTime, endTime)
-	salesData, err := salesDatamapper.FindAll()
+	salesData, err := salesDatamapper.FindByDoneStatusAndDateRange(startTime, endTime)
 	if err != nil {
 		if err.Err == datamapper.ErrNotFound {
 			//no data
@@ -348,4 +348,14 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 	salesValue.SalesTurnOver = salesTurnover
 	salesValue.SaleCount = saleCount
 	return salesValue, nil
+}
+
+//StartUp allows the service object to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
+func (i *Inventory) StartUp() {
+	//Note: Perform any initialization or bootstrapping here
+}
+
+//Shutdown allows the service object to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
+func (i *Inventory) Shutdown() {
+	//Note: perform any cleanup here
 }

@@ -36,7 +36,7 @@ func (m *MockStockMapper) FindByID(id string) (model.Model, *errors.Error) {
 }
 
 func (m *MockStockMapper) FindAll() ([]model.Model, *errors.Error) {
-	var stockSlice []model.Model
+	stockSlice := make([]model.Model, 0)
 	stockSlice = append(stockSlice, dummyStockModel1)
 	stockSlice = append(stockSlice, dummyStockModel2)
 	return stockSlice, nil
@@ -55,18 +55,6 @@ func (m *MockStockMapper) Delete(model model.Model) *errors.Error {
 }
 
 func (m *MockStockMapper) Save(model model.Model) *errors.Error {
-	return nil
-}
-
-func (m *MockStockMapper) BeginTransaction() *errors.Error {
-	return nil
-}
-
-func (m *MockStockMapper) Commit() *errors.Error {
-	return nil
-}
-
-func (m *MockStockMapper) Rollback() *errors.Error {
 	return nil
 }
 
@@ -133,18 +121,6 @@ func (m *MockPurchaseMapper) Delete(model model.Model) *errors.Error {
 }
 
 func (m *MockPurchaseMapper) Save(model model.Model) *errors.Error {
-	return nil
-}
-
-func (m *MockPurchaseMapper) BeginTransaction() *errors.Error {
-	return nil
-}
-
-func (m *MockPurchaseMapper) Commit() *errors.Error {
-	return nil
-}
-
-func (m *MockPurchaseMapper) Rollback() *errors.Error {
 	return nil
 }
 
@@ -215,18 +191,6 @@ func (m *MockSalesMapper) Save(model model.Model) *errors.Error {
 	return nil
 }
 
-func (m *MockSalesMapper) BeginTransaction() *errors.Error {
-	return nil
-}
-
-func (m *MockSalesMapper) Commit() *errors.Error {
-	return nil
-}
-
-func (m *MockSalesMapper) Rollback() *errors.Error {
-	return nil
-}
-
 //Mock object for stock datamapper (failed responses)
 type MockFailedStockMapper struct {
 }
@@ -255,18 +219,6 @@ func (m *MockFailedStockMapper) Save(model model.Model) *errors.Error {
 	return errors.Wrap(fmt.Errorf("dummy failure for save"), 0)
 }
 
-func (m *MockFailedStockMapper) BeginTransaction() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for begin"), 0)
-}
-
-func (m *MockFailedStockMapper) Commit() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for commit"), 0)
-}
-
-func (m *MockFailedStockMapper) Rollback() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
-}
-
 //Mock object for purchase datamapper (failed responses)
 type MockFailedPurchaseMapper struct {
 }
@@ -293,18 +245,6 @@ func (m *MockFailedPurchaseMapper) Delete(model model.Model) *errors.Error {
 
 func (m *MockFailedPurchaseMapper) Save(model model.Model) *errors.Error {
 	return errors.Wrap(fmt.Errorf("dummy failure for save"), 0)
-}
-
-func (m *MockFailedPurchaseMapper) BeginTransaction() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for begin"), 0)
-}
-
-func (m *MockFailedPurchaseMapper) Commit() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for commit"), 0)
-}
-
-func (m *MockFailedPurchaseMapper) Rollback() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
 }
 
 //Mock object for sales datamapper (failed responses)
@@ -339,18 +279,6 @@ func (m *MockFailedSalesMapper) Save(model model.Model) *errors.Error {
 	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
 }
 
-func (m *MockFailedSalesMapper) BeginTransaction() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
-}
-
-func (m *MockFailedSalesMapper) Commit() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
-}
-
-func (m *MockFailedSalesMapper) Rollback() *errors.Error {
-	return errors.Wrap(fmt.Errorf("dummy failure for rollback"), 0)
-}
-
 //Special Mock object for CreateSale test (combination of successful and failed cases)
 type MockCreateSalesMapper struct {
 }
@@ -361,7 +289,7 @@ func (m *MockCreateSalesMapper) FindByID(id string) (model.Model, *errors.Error)
 }
 
 func (m *MockCreateSalesMapper) FindAll() ([]model.Model, *errors.Error) {
-	var modelSlice []model.Model
+	modelSlice := make([]model.Model, 0)
 
 	modelObj := dummySalesModel2
 	items := make(map[string]*model.SaleItem, 0)
@@ -393,17 +321,5 @@ func (m *MockCreateSalesMapper) Delete(model model.Model) *errors.Error {
 }
 
 func (m *MockCreateSalesMapper) Save(model model.Model) *errors.Error {
-	return nil
-}
-
-func (m *MockCreateSalesMapper) BeginTransaction() *errors.Error {
-	return nil
-}
-
-func (m *MockCreateSalesMapper) Commit() *errors.Error {
-	return nil
-}
-
-func (m *MockCreateSalesMapper) Rollback() *errors.Error {
 	return nil
 }

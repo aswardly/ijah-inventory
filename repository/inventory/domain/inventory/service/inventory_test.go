@@ -264,18 +264,18 @@ func TestGetAllStockValue(t *testing.T) {
 
 func TestGetAllSalesValue(t *testing.T) {
 	//successful case
-	saleValue, err := inventoryService.GetAllSalesValue(time.Now(), time.Now()) //on dummy sales mapper these params are ignored
+	saleValue, errs := inventoryService.GetAllSalesValue(time.Now(), time.Now()) //on dummy sales mapper these params are ignored
 	t.Run("GetAllSalesValue return must be sale value object", func(t *testing.T) {
 		if getType(saleValue) != "*SaleValue" {
 			t.Errorf("expected *SaleValue but got %v", getType(saleValue))
 		}
 	})
-	t.Run("err return must be nil", func(t *testing.T) {
-		if err != nil {
-			t.Errorf("expected nil but got %v", err)
+
+	t.Run("err returned must be nil", func(t *testing.T) {
+		if errs != nil {
+			t.Errorf("expected nil but got %v", errs)
 		}
 	})
-
 	t.Run("check sale value properties", func(t *testing.T) {
 		if saleValue.TotalQuantity != 6 {
 			t.Errorf("expected totalQuantity %v but got %v", 34, saleValue.TotalQuantity)

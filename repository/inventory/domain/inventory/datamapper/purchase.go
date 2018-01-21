@@ -19,7 +19,6 @@ const dateFormat = "2006-01-02"
 //Purchase is a struct of datamapper for purchase domain model
 type Purchase struct {
 	db *sql.DB
-	tx *sql.Tx
 }
 
 //NewPurchase creates a new Purchase datamapper and returns a pointer to it
@@ -214,21 +213,13 @@ func (p *Purchase) Insert(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot insert, model with id: %v already exists", purchaseModel.GetID()), 0)
 	}
 
-	//start db transaction
-	tx, err := p.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-
 	stmt, err := p.db.Prepare("INSERT INTO purchase(PURCHASE_ID, PURCHASE_DATE, STATUS, NOTE) values(?,?,?,?)")
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	dateString := purchaseModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(purchaseModelObj.PurchaseID, dateString, purchaseModelObj.Status, purchaseModelObj.Note)
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -236,16 +227,13 @@ func (p *Purchase) Insert(purchaseModel model.Model) *errors.Error {
 	for _, val := range purchaseModelObj.Items {
 		itemStmt, err := p.db.Prepare("INSERT INTO purchase_items(PURCHASE_ID, SKU, QUANTITY, BUY_PRICE, NOTE) values(?,?,?,?,?)")
 		if err != nil {
-			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 		_, err = itemStmt.Exec(purchaseModelObj.PurchaseID, val.Sku, val.Quantity, val.BuyPrice, val.Note)
 		if err != nil {
-			tx.Rollback()
 			return errors.Wrap(err, 0)
 		}
 	}
-	tx.Commit()
 
 	return nil
 }
@@ -262,21 +250,13 @@ func (p *Purchase) Update(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", purchaseModel.GetID()), 0)
 	}
 
-	//start db transaction
-	tx, err := p.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-
 	stmt, err := p.db.Prepare("UPDATE purchase SET DATE=?, STATUS=?, NOTE=? WHERE PURCHASE_ID=?")
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	dateString := purchaseModelObj.Date.Format(timeFormat)
 	_, err = stmt.Exec(dateString, purchaseModelObj.Status, purchaseModelObj.Note, purchaseModelObj.PurchaseID)
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
@@ -286,28 +266,23 @@ func (p *Purchase) Update(purchaseModel model.Model) *errors.Error {
 		if false == val.GetLoadedFromStorage() {
 			itemStmt, err = p.db.Prepare("INSERT INTO purchase_items(PURCHASE_ID, SKU, QUANTITY, BUY_PRICE, NOTE) values(?,?,?,?,?)")
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 			_, err = itemStmt.Exec(purchaseModelObj.PurchaseID, val.Sku, val.Quantity, val.BuyPrice, val.Note)
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		} else {
 			itemStmt, err = p.db.Prepare("UPDATE purchase_items SET QUANTITY=?, BUY_PRICE=?, NOTE=? WHERE ID=?")
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 			_, err = itemStmt.Exec(val.Quantity, val.BuyPrice, val.Note, val.GetID())
 			if err != nil {
-				tx.Rollback()
 				return errors.Wrap(err, 0)
 			}
 		}
 	}
-	tx.Commit()
 
 	return nil
 }
@@ -324,36 +299,25 @@ func (p *Purchase) Delete(purchaseModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("cannot delete, model with id: %v doesn't exist", purchaseModel.GetID()), 0)
 	}
 
-	//start db transaction
-	tx, err := p.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-
 	//delete items
 	itemStmt, err := p.db.Prepare("DELETE FROM purchase_items WHERE PURCHASE_ID=?")
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	_, err = itemStmt.Exec(purchaseModelObj.PurchaseID)
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 
 	//delete the model
 	stmt, err := p.db.Prepare("DELETE FROM purchase WHERE PURCHASE_ID=?")
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
 	_, err = stmt.Exec(purchaseModelObj.PurchaseID)
 	if err != nil {
-		tx.Rollback()
 		return errors.Wrap(err, 0)
 	}
-	tx.Commit()
 
 	return nil
 }
@@ -369,42 +333,6 @@ func (p *Purchase) Save(purchaseModel model.Model) *errors.Error {
 		err = p.Insert(purchaseModel)
 	}
 	return err
-}
-
-//BeginTransaction starts a transaction on the connected session
-func (p *Purchase) BeginTransaction() *errors.Error {
-	tx, err := p.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	p.tx = tx
-	return nil
-}
-
-//Commit commits the transaction
-func (p *Purchase) Commit() *errors.Error {
-	if p.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't commit, no transaction has been started"), 0)
-	}
-	err := p.tx.Commit()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	p.tx = nil
-	return nil
-}
-
-//Rollback cancels the transaction
-func (p *Purchase) Rollback() *errors.Error {
-	if p.tx == nil {
-		return errors.Wrap(fmt.Errorf("Can't rollback, no transaction has been started"), 0)
-	}
-	err := p.tx.Rollback()
-	if err != nil {
-		return errors.Wrap(err, 0)
-	}
-	p.tx = nil
-	return nil
 }
 
 //StartUp allows the datamapper to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
