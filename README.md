@@ -143,7 +143,7 @@ invoiceId=invABC&note=invoice baru&sku[1]=SSI-D00864612-LL-NAV&quantity[1]=3&sku
 ````
 
 Sample response:
-``javascript
+```javascript
 {
 	"code": "S",
 	"message": "Sale created successfully",
