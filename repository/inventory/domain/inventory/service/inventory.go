@@ -13,46 +13,46 @@ import (
 
 //SaleItem is a definition of items in a sale
 type SaleItem struct {
-	Sku      string
-	Quantity int64
+	Sku      string `json:"sku"`
+	Quantity int64  `json:"quantity"`
 }
 
 //StockValue is a struct containing stock value information
 type StockValue struct {
-	Date          time.Time
-	TotalQuantity int64
-	TotalAmount   float64
-	TotalItemKind int
-	Items         map[string]*StockValueItem
+	Date          time.Time                  `json:"date"`
+	TotalQuantity int64                      `json:"totalQuantity"`
+	TotalAmount   float64                    `json:"totalAmount"`
+	TotalItemKind int                        `json:"totalItemKind"`
+	Items         map[string]*StockValueItem `json:"items"`
 }
 
 //StockValueItem is a struct containing stock value for a specific Sku
 type StockValueItem struct {
-	Sku         string
-	Quantity    int64
-	BuyPrice    float64
-	TotalAmount float64
+	Sku         string  `json:"sku"`
+	Quantity    int64   `json:"quantity"`
+	BuyPrice    float64 `json:"buyPrice"`
+	TotalAmount float64 `json:"totalAmount"`
 }
 
 //SaleValue is a struct containing sales value information
 type SaleValue struct {
-	StartDate     time.Time
-	EndDate       time.Time
-	TotalQuantity int64
-	TotalItemKind int
-	SaleCount     int
-	SalesTurnOver float64
-	Profit        float64
-	Items         []*SaleValueItem
+	StartDate     time.Time        `json:"startDate"`
+	EndDate       time.Time        `json:"endDate"`
+	TotalQuantity int64            `json:"totalQuantity"`
+	TotalItemKind int              `json:"totalItemKind"`
+	SaleCount     int              `json:"saleCount"`
+	SalesTurnOver float64          `json:"omzet"`
+	Profit        float64          `json:"totalProfit"`
+	Items         []*SaleValueItem `json:"items"`
 }
 
 //SaleValueItem is a struct containing sales value for a specific Sku
 type SaleValueItem struct {
-	Sku       string
-	Quantity  int64
-	BuyPrice  float64
-	SellPrice float64
-	Profit    float64
+	Sku       string  `json:"sku"`
+	Quantity  int64   `json:"quantity"`
+	BuyPrice  float64 `json:"buyPrice"`
+	SellPrice float64 `json:"sellPrice"`
+	Profit    float64 `json:"profit"`
 }
 
 //NewInventory returns a new inventory service object
@@ -97,6 +97,19 @@ func (i *Inventory) AddSKU(sku string, quantity int64, buyPrice, sellPrice float
 	return i.StockDatamapper.Insert(newSku)
 }
 
+//UpdateSKU is a function for updating SKU info
+func (i *Inventory) UpdateSKU(sku string, quantity int64, buyPrice, sellPrice float64) *errors.Error {
+	stockObj, err := i.GetItemInfo(sku)
+	if err != nil {
+		return err
+	}
+	stockObj.Quantity = quantity
+	stockObj.BuyPrice = buyPrice
+	stockObj.SellPrice = sellPrice
+
+	return i.StockDatamapper.Update(stockObj)
+}
+
 //CreateSale is a fucntion for creating a new sale
 func (i *Inventory) CreateSale(invoiceNo, note string, items ...SaleItem) (bool, *errors.Error) {
 	//compose sale domain model
@@ -106,7 +119,7 @@ func (i *Inventory) CreateSale(invoiceNo, note string, items ...SaleItem) (bool,
 		Note:      note,
 		Status:    model.SalesStatusDraft,
 	}
-	newSalesItems := make(map[string]*model.SaleItem, 5)
+	newSalesItems := make(map[string]*model.SaleItem, 0)
 	for _, val := range items {
 		//get buy and sell price of the sku
 		foundItem, err := i.StockDatamapper.FindByID(val.Sku)
@@ -230,13 +243,12 @@ func (i *Inventory) GetAllStockValue() (*StockValue, *errors.Error) {
 	var kind int            //total kind of sku available
 	var totalAmount float64 //total amount of sku value, accumulate buy price * quantity for every sku
 	var totalQuantity int64 //total quantity of all sku, accumulate quantity for every sku
-	stockValueItems := make(map[string]*StockValueItem, 5)
+	stockValueItems := make(map[string]*StockValueItem, 0)
 	for _, val := range currentStock {
 		valObj, ok := val.(*model.Stock)
 		if false == ok {
 			return nil, errors.Wrap(fmt.Errorf("Failed asserting returned model"), 0)
 		}
-
 		newStockValueItem := &StockValueItem{
 			Sku:         valObj.Sku,
 			Quantity:    valObj.Quantity,
@@ -268,7 +280,19 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 		EndDate:   endTime,
 	}
 	//get sales data from db
-	salesData, err := i.SalesDatamapper.FindByDoneStatusAndDateRange(startTime, endTime)
+
+	//TODO: refactor this,
+	//we need to type assert i.salesDataMapper to datamapper.saleMapper, since we need to execute method FindByDoneStatusAndDateRange
+	//but got problem with unit test (a struct MockSaleMapper that implements DataMapper fails type assertion, since it is asserted as MockSaleMapper, not datamapper.Sale)
+	salesDatamapper := i.SalesDatamapper
+	//fmt.Printf("%T, %v\n", i.SalesDatamapper, i.SalesDatamapper)
+	/*salesDatamapper, ok := i.SalesDatamapper.(*datamapper.Sale)
+	if false == ok {
+		return nil, errors.Wrap(fmt.Errorf("Failed asserting sales datamapper"), 0)
+	}
+	*/
+	//salesData, err := salesDatamapper.FindByDoneStatusAndDateRange(startTime, endTime)
+	salesData, err := salesDatamapper.FindAll()
 	if err != nil {
 		if err.Err == datamapper.ErrNotFound {
 			//no data
@@ -283,9 +307,8 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 	var totalKind int         //total kind of sku sold during the given period
 	var saleCount int         //total count of sales during the given period
 
-	var tempSku = make(map[string]bool, 5) //temporary storage for counting total kind of sku
-	saleValueItems := make([]*SaleValueItem, 5)
-
+	var tempSku = make(map[string]bool) //temporary storage for counting total kind of sku
+	saleValueItems := make([]*SaleValueItem, 0)
 	for _, val := range salesData {
 		valObj, ok := val.(*model.Sales)
 		if false == ok {
@@ -308,7 +331,7 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 				BuyPrice:  itemVal.BuyPrice,
 				SellPrice: itemVal.SellPrice,
 				Quantity:  itemVal.Quantity,
-				Profit:    itemVal.SellPrice - itemVal.BuyPrice,
+				Profit:    (itemVal.SellPrice - itemVal.BuyPrice) * float64(itemVal.Quantity),
 			}
 			saleValueItems = append(saleValueItems, saleValueItem)
 		}
@@ -319,6 +342,5 @@ func (i *Inventory) GetAllSalesValue(startTime, endTime time.Time) (*SaleValue, 
 	salesValue.Profit = totalProfit
 	salesValue.SalesTurnOver = salesTurnover
 	salesValue.SaleCount = saleCount
-
 	return salesValue, nil
 }

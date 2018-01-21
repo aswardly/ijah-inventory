@@ -32,6 +32,7 @@ func NewStock(dbSession *sql.DB) *Stock {
 //FindByID is a function for finding a record by id
 func (s *Stock) FindByID(id string) (model.Model, *errors.Error) {
 	stmt, err := s.db.Prepare("SELECT SKU, NAME, QUANTITY, BUY_PRICE, SELL_PRICE FROM stock WHERE SKU = ?")
+
 	if err != nil {
 		return nil, errors.Wrap(err, 0)
 	}

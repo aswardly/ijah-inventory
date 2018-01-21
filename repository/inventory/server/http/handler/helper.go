@@ -16,11 +16,12 @@ var (
 
 //SimpleResponseStruct is representation of simple response returned to the http client
 type SimpleResponseStruct struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	Code    string      `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
 }
 
-//composeJSONResponse is a helper function for composing simple response (formatted to JSON) for http response
+//composeJSONResponse is a helper function for composing JSON string for http response (will be displayed to user's browser)
 //input is expected to be a struct to be marshalled to json
 func composeJSONResponse(input interface{}) (string, *StatusError) {
 	responseJSON, err := json.Marshal(input)
@@ -34,7 +35,7 @@ func composeJSONResponse(input interface{}) (string, *StatusError) {
 	return string(responseJSON), nil
 }
 
-//composeJSONError is a helper function for composing StatusError object with the composed simple response (formatted to JSON) as its response message
+//composeJSONError is a helper function for composing JSON string for http response and StatusError object with the JSON string as its return message (will be displayed to user's browser)
 //input is expected to be a struct to be marshalled to json
 func composeJSONError(input interface{}) *StatusError {
 	//compose return json format
@@ -50,4 +51,13 @@ func composeJSONError(input interface{}) *StatusError {
 		ReturnMessage: returnMessage,
 		Err:           errors.Wrap(err, 0),
 	}
+}
+
+//composeError returns a StatusError from a given error object
+func composeError(err error) *StatusError {
+	response := SimpleResponseStruct{}
+	response.Code = ErrCodeFailed
+	response.Message = "Error: " + err.Error()
+	statusErr := composeJSONError(response)
+	return statusErr
 }

@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"ijah-inventory/repository/inventory/domain/inventory/datamapper"
+	"ijah-inventory/repository/inventory/domain/inventory/service"
 	dbConfig "ijah-inventory/repository/inventory/server/config/database"
 	httpConfig "ijah-inventory/repository/inventory/server/config/http"
 	"ijah-inventory/repository/inventory/server/http/handler"
@@ -59,11 +60,27 @@ func (s *Server) setup() {
 	salesDatamapper := datamapper.NewPurchase(dbSession)
 	s.sc.RegisterService("salesDatamapper", salesDatamapper)
 
+	//inventory service
+	inventoryService := &service.Inventory{}
+	s.sc.RegisterService("inventoryService", inventoryService)
+
 	//test handler
 	testHandler := &handler.TestHandler{}
 	testHandler.SetContainer(s.sc)
 	testHandler.Handle = testHandler.TestHandle
 	s.sc.RegisterService("testHandler", testHandler)
+
+	//getItemInfo Handler
+	getItemInfoHandler := &handler.GetItemInfoHandler{}
+	getItemInfoHandler.SetContainer(s.sc)
+	getItemInfoHandler.Handle = getItemInfoHandler.GetItemInfoHandle
+	s.sc.RegisterService("getItemInfoHandler", getItemInfoHandler)
+
+	//addSKU Handler
+	addSKUHandler := &handler.AddSKUHandler{}
+	addSKUHandler.SetContainer(s.sc)
+	addSKUHandler.Handle = addSKUHandler.AddSKUHandle
+	s.sc.RegisterService("addSKUHandler", addSKUHandler)
 
 	//perform injection
 	if err := s.sc.Ready(); err != nil {

@@ -61,7 +61,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := h.Handle(w, r)
 	if err != nil {
 		switch e := err.(type) {
-		case StatusError:
+		case *StatusError:
 			//retrieve and log the specific HTTP status code
 			log.WithFields(log.Fields{
 				"code":            e.Code,
@@ -70,14 +70,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"trace":           e.Err.ErrorStack(),
 			}).Error(e.Err.Error())
 			http.Error(w, e.ReturnMessage, e.Code)
+			fmt.Printf("Return message: %+v\n", e.ReturnMessage)
+			fmt.Printf("Stack trace: %+v\n", e.Err.ErrorStack())
 		default:
 			log.WithFields(log.Fields{
 				"code":            http.StatusInternalServerError,
 				"returnedMessage": err.Error(),
 			}).Error(err.Error())
 			//For any other types, set response HTTP status to 500
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			fmt.Printf("Error occured: %+v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			fmt.Printf("Return message: %+v\n", err.Error())
 		}
 	}
 	//NOTE: it is also possible to log every requests handled and the returned responses here
