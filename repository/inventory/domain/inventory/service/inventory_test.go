@@ -4,14 +4,14 @@ package service_test
 import (
 	"ijah-inventory/repository/inventory/domain/inventory/model"
 	"ijah-inventory/repository/inventory/domain/inventory/service"
-	"reflect"
-	"time"
 
 	"os"
+	"reflect"
 	"testing"
+	"time"
 )
 
-var inventoryService *service.Inventory
+var inventoryService, failedInventoryService, successfulCreateSaleInventoryService *service.Inventory
 
 //getType is a function to get type of something (without package name)
 //see: https://stackoverflow.com/questions/35790935/using-reflection-in-go-to-get-the-name-of-a-struct
@@ -25,10 +25,26 @@ func getType(myvar interface{}) string {
 
 func TestMain(m *testing.M) {
 	//test setup
+
+	//successful case inventory service object
 	inventoryService = &service.Inventory{
 		StockDatamapper:    &MockStockMapper{},
 		PurchaseDatamapper: &MockPurchaseMapper{},
 		SalesDatamapper:    &MockSalesMapper{},
+	}
+
+	//failed case inventory service object
+	failedInventoryService = &service.Inventory{
+		StockDatamapper:    &MockFailedStockMapper{},
+		PurchaseDatamapper: &MockFailedPurchaseMapper{},
+		SalesDatamapper:    &MockFailedSalesMapper{},
+	}
+
+	//special case for createSale (combination of successful and failed datamapper)
+	successfulCreateSaleInventoryService = &service.Inventory{
+		StockDatamapper:    &MockStockMapper{},
+		PurchaseDatamapper: &MockFailedPurchaseMapper{},
+		SalesDatamapper:    &MockCreateSalesMapper{},
 	}
 
 	//run tests
@@ -37,6 +53,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestGetItemInfo(t *testing.T) {
+	//successful case
 	itemInfo, err := inventoryService.GetItemInfo("dummySku")
 
 	t.Run("GetItemInfo return must be stock model object", func(t *testing.T) {
@@ -56,27 +73,62 @@ func TestGetItemInfo(t *testing.T) {
 			t.Errorf("expected %v but got %v", dummyStockModel1.Sku, itemInfo.Sku)
 		}
 	})
+
+	//failed case
+	failedItemInfo, failedErr := failedInventoryService.GetItemInfo("dummySku")
+
+	t.Run("Failed GetItemInfo return must be nil", func(t *testing.T) {
+		if failedItemInfo != nil {
+			t.Errorf("expected nil but got %v", failedItemInfo)
+		}
+	})
+
+	t.Run("err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
+		}
+	})
+
 }
 
 func TestAddSKU(t *testing.T) {
+	//successful case
 	err := inventoryService.AddSKU("dummyNewSku", 250, 55000, 60000)
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected nil but got %v", err)
 		}
 	})
+
+	//failed case
+	failedErr := failedInventoryService.AddSKU("dummyNewSku", 250, 55000, 60000)
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
+		}
+	})
 }
 
 func TestUpdateSKU(t *testing.T) {
+	//successful case
 	err := inventoryService.UpdateSKU("dummySku", 250, 50000, 55000)
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected nil but got %v", err)
 		}
 	})
+
+	//failed case
+	failedErr := failedInventoryService.UpdateSKU("dummySku", 250, 50000, 55000)
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
+		}
+	})
 }
 
 func TestCreateSale(t *testing.T) {
+	//successful case
 	saleItem := service.SaleItem{
 		Sku:      "dummySku",
 		Quantity: 10,
@@ -84,38 +136,63 @@ func TestCreateSale(t *testing.T) {
 	saleItemSlice := make([]service.SaleItem, 0)
 	saleItemSlice = append(saleItemSlice, saleItem)
 
-	ok, err := inventoryService.CreateSale("newInvoice01", "dummy new invoice", saleItemSlice)
+	ok, err := successfulCreateSaleInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
 
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)
 		}
 	})
-
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected nil but got %v", err)
+		}
+	})
+
+	//failed case
+	failedOk, failedErr := failedInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
+	t.Run("Failed return must be true", func(t *testing.T) {
+		if false != failedOk {
+			t.Errorf("expected false but got %v", failedOk)
+		}
+	})
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
 		}
 	})
 }
 
 func TestUpdateSale(t *testing.T) {
+	//successful case
 	ok, err := inventoryService.UpdateSale("dummyInvoice", model.SalesStatusDone)
-
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)
 		}
 	})
-
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected nil but got %v", err)
 		}
 	})
+
+	//failed case
+	failedOk, failedErr := failedInventoryService.UpdateSale("dummyInvoice", model.SalesStatusDone)
+	t.Run("Failed return must be true", func(t *testing.T) {
+		if false != failedOk {
+			t.Errorf("expected false but got %v", failedOk)
+		}
+	})
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
+		}
+	})
 }
 
 func TestGetAllStockValue(t *testing.T) {
+	//successful case
 	stockValue, err := inventoryService.GetAllStockValue()
 	t.Run("GetAllStockValue return must be stock value object", func(t *testing.T) {
 		if getType(stockValue) != "*StockValue" {
@@ -170,11 +247,24 @@ func TestGetAllStockValue(t *testing.T) {
 			}
 		}
 	})
+
+	//failed case
+	failedStockValue, failedErr := failedInventoryService.GetAllStockValue()
+	t.Run("Failed GetAllStockValue return must be nil", func(t *testing.T) {
+		if failedStockValue != nil {
+			t.Errorf("expected nil but got %v", failedStockValue)
+		}
+	})
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
+		}
+	})
 }
 
 func TestGetAllSalesValue(t *testing.T) {
-	saleValue, err := inventoryService.GetAllSalesValue(time.Now(), time.Now()) //on dummy sales mapper these params are ignored anyway
-
+	//successful case
+	saleValue, err := inventoryService.GetAllSalesValue(time.Now(), time.Now()) //on dummy sales mapper these params are ignored
 	t.Run("GetAllSalesValue return must be sale value object", func(t *testing.T) {
 		if getType(saleValue) != "*SaleValue" {
 			t.Errorf("expected *SaleValue but got %v", getType(saleValue))
@@ -208,6 +298,19 @@ func TestGetAllSalesValue(t *testing.T) {
 					t.Errorf("sku dummySku expected profit %v but got %v", 15000, val.Profit)
 				}
 			}
+		}
+	})
+
+	//failed case
+	failedSaleValue, failedErr := failedInventoryService.GetAllSalesValue(time.Now(), time.Now()) //on dummy sales mapper these params are ignored
+	t.Run("Failed GetAllSalesValue return must be nil", func(t *testing.T) {
+		if failedSaleValue != nil {
+			t.Errorf("expected nil but got %v", getType(failedSaleValue))
+		}
+	})
+	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
+		if getType(failedErr) != "*Error" {
+			t.Errorf("expected *Error but got %v", getType(failedErr))
 		}
 	})
 }
