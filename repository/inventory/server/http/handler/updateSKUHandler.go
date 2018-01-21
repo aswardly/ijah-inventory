@@ -6,14 +6,14 @@ import (
 	"strconv"
 )
 
-//AddSKUHandler is a specific http handler for adding new sku
-type AddSKUHandler struct {
+//UpdateSKUHandler is a specific http handler for adding new sku
+type UpdateSKUHandler struct {
 	Handler
 	InventoryService *service.Inventory `inject:"inventoryService"`
 }
 
-//AddSKUHandle is the implementation of http handler for a AddSKUHandler object
-func (h *AddSKUHandler) AddSKUHandle(w http.ResponseWriter, r *http.Request) error {
+//UpdateSKUHandle is the implementation of http handler for a UpdateSKUHandler object
+func (h *UpdateSKUHandler) UpdateSKUHandle(w http.ResponseWriter, r *http.Request) error {
 	//read the following POST data:
 	// - sku
 	// - quantity
@@ -37,14 +37,14 @@ func (h *AddSKUHandler) AddSKUHandle(w http.ResponseWriter, r *http.Request) err
 		return composeError(err)
 	}
 
-	addErr := h.InventoryService.AddSKU(sku, quantityParam, buyPriceParam, sellPriceParam)
+	addErr := h.InventoryService.UpdateSKU(sku, quantityParam, buyPriceParam, sellPriceParam)
 	if addErr != nil {
 		return composeError(addErr)
 	}
 	//compose successful response
 	response := SimpleResponseStruct{}
 	response.Code = ErrCodeSuccessful
-	response.Message = "Addition successful"
+	response.Message = "Update successful"
 
 	successfulResponse, statusError := composeJSONResponse(response)
 	if statusError != nil {
@@ -56,11 +56,11 @@ func (h *AddSKUHandler) AddSKUHandle(w http.ResponseWriter, r *http.Request) err
 }
 
 //StartUp allows the handler to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
-func (h *AddSKUHandler) StartUp() {
+func (h *UpdateSKUHandler) StartUp() {
 	//Note: perform initialization/bootstrapping here
 }
 
 //Shutdown allows the handler to satisfy gocontainer.Service interface (import package github.com/ncrypthic/gocontainer)
-func (h *AddSKUHandler) Shutdown() {
+func (h *UpdateSKUHandler) Shutdown() {
 	//Note: perform any cleanup here
 }

@@ -146,7 +146,7 @@ func (s *Stock) Update(stockModel model.Model) *errors.Error {
 		return errors.Wrap(fmt.Errorf("Failed asserting to *model.Stock"), 0)
 	}
 	_, errs := s.FindByID(stockModel.GetID())
-	if errs.Err == sql.ErrNoRows {
+	if errs != nil && errs.Err == sql.ErrNoRows {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", stockModel.GetID()), 0)
 	}
 	stmt, err := s.db.Prepare("UPDATE stock SET SKU=?, NAME=?, QUANTITY=?, BUY_PRICE=?, SELL_PRICE=? WHERE SKU=?")

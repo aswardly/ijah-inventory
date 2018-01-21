@@ -52,5 +52,70 @@ func (s *Server) routeSetup() {
 	if false == ok {
 		panic("failed asserting 'addSKUHandler'")
 	}
-	getItemInfoRoute.Handler(addSKUHandler)
+	addSKURoute.Handler(addSKUHandler)
+
+	//updateSKU Route
+	updateSKURoute := s.router.Path("/updateSKU")
+	updateSKURoute.Methods("POST")
+	serviceObj, found = s.sc.GetService("updateSKUHandler")
+	if false == found {
+		panic("service 'updateSKUHandler' not found")
+	}
+	updateSKUHandler, ok := serviceObj.(*handler.UpdateSKUHandler)
+	if false == ok {
+		panic("failed asserting 'updateSKUHandler'")
+	}
+	updateSKURoute.Handler(updateSKUHandler)
+
+	//createSale Route
+	createSaleRoute := s.router.Path("/createSale")
+	createSaleRoute.Methods("POST")
+	serviceObj, found = s.sc.GetService("createSaleHandler")
+	if false == found {
+		panic("service 'createSalehandler' not found")
+	}
+	createSaleHandler, ok := serviceObj.(*handler.CreateSaleHandler)
+	if false == ok {
+		panic("failed asserting 'createSaleHandler'")
+	}
+	createSaleRoute.Handler(createSaleHandler)
+
+	//updateSale Route
+	updateSaleRoute := s.router.Path("/updateSale")
+	updateSaleRoute.Methods("POST")
+	serviceObj, found = s.sc.GetService("updateSaleHandler")
+	if false == found {
+		panic("service 'updateSaleHandler' not found")
+	}
+	updateSaleHandler, ok := serviceObj.(*handler.UpdateSaleHandler)
+	if false == ok {
+		panic("failed asserting 'updateSaleHandler'")
+	}
+	updateSaleRoute.Handler(updateSaleHandler)
+
+	//getAllStockValue Route
+	getAllStockValueRoute := s.router.Path("/getStockValue")
+	getAllStockValueRoute.Methods("GET")
+	serviceObj, found = s.sc.GetService("getAllStockValueHandler")
+	if false == found {
+		panic("service 'getAllStockValueHandler' not found")
+	}
+	getAllStockValueHandler, ok := serviceObj.(*handler.GetAllStockValueHandler)
+	if false == ok {
+		panic("failed asserting 'getAllStockValueHandler'")
+	}
+	getAllStockValueRoute.Handler(getAllStockValueHandler)
+
+	//getAllSalesValue Route
+	getAllSalesValueRoute := s.router.Path("/getSalesValue")
+	getAllSalesValueRoute.Methods("GET")
+	serviceObj, found = s.sc.GetService("getAllSalesValueHandler")
+	if false == found {
+		panic("service 'getAllSalesValueHandler' not found")
+	}
+	getAllSalesValueHandler, ok := serviceObj.(*handler.GetAllSalesValueHandler)
+	if false == ok {
+		panic("failed asserting 'getAllStockValueHandler'")
+	}
+	getAllSalesValueRoute.Handler(getAllSalesValueHandler)
 }

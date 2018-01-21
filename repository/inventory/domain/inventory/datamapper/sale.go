@@ -353,7 +353,7 @@ func (s *Sale) Update(salesModel model.Model) *errors.Error {
 	}
 
 	_, errs := s.FindByID(salesModel.GetID())
-	if errs.Err == sql.ErrNoRows {
+	if errs != nil && errs.Err == sql.ErrNoRows {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", salesModel.GetID()), 0)
 	}
 

@@ -258,7 +258,7 @@ func (p *Purchase) Update(purchaseModel model.Model) *errors.Error {
 	}
 
 	_, errs := p.FindByID(purchaseModel.GetID())
-	if errs.Err == sql.ErrNoRows {
+	if errs != nil && errs.Err == sql.ErrNoRows {
 		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", purchaseModel.GetID()), 0)
 	}
 

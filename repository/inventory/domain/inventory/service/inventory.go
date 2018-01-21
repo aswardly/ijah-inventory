@@ -111,7 +111,12 @@ func (i *Inventory) UpdateSKU(sku string, quantity int64, buyPrice, sellPrice fl
 }
 
 //CreateSale is a fucntion for creating a new sale
-func (i *Inventory) CreateSale(invoiceNo, note string, items ...SaleItem) (bool, *errors.Error) {
+func (i *Inventory) CreateSale(invoiceNo, note string, items []SaleItem) (bool, *errors.Error) {
+	existingSale, _ := i.SalesDatamapper.FindByID(invoiceNo)
+	if existingSale != nil {
+		return false, errors.Wrap(fmt.Errorf("Invoice no %v already exists", invoiceNo), 0)
+	}
+
 	//compose sale domain model
 	newSale := &model.Sales{
 		InvoiceID: invoiceNo,

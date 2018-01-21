@@ -57,7 +57,7 @@ func (s *Server) setup() {
 	s.sc.RegisterService("purchaseDatamapper", purchaseDatamapper)
 
 	//sales datamapper
-	salesDatamapper := datamapper.NewPurchase(dbSession)
+	salesDatamapper := datamapper.NewSale(dbSession)
 	s.sc.RegisterService("salesDatamapper", salesDatamapper)
 
 	//inventory service
@@ -81,6 +81,36 @@ func (s *Server) setup() {
 	addSKUHandler.SetContainer(s.sc)
 	addSKUHandler.Handle = addSKUHandler.AddSKUHandle
 	s.sc.RegisterService("addSKUHandler", addSKUHandler)
+
+	//updateSKU Handler
+	updateSKUHandler := &handler.UpdateSKUHandler{}
+	updateSKUHandler.SetContainer(s.sc)
+	updateSKUHandler.Handle = updateSKUHandler.UpdateSKUHandle
+	s.sc.RegisterService("updateSKUHandler", updateSKUHandler)
+
+	//createSale Handler
+	createSaleHandler := &handler.CreateSaleHandler{}
+	createSaleHandler.SetContainer(s.sc)
+	createSaleHandler.Handle = createSaleHandler.CreateSaleHandle
+	s.sc.RegisterService("createSaleHandler", createSaleHandler)
+
+	//updateSale Handler
+	updateSaleHandler := &handler.UpdateSaleHandler{}
+	updateSaleHandler.SetContainer(s.sc)
+	updateSaleHandler.Handle = updateSaleHandler.UpdateSaleHandle
+	s.sc.RegisterService("updateSaleHandler", updateSaleHandler)
+
+	//getAllStockValue Handler
+	getAllStockValueHandler := &handler.GetAllStockValueHandler{}
+	getAllStockValueHandler.SetContainer(s.sc)
+	getAllStockValueHandler.Handle = getAllStockValueHandler.GetAllStockValueHandle
+	s.sc.RegisterService("getAllStockValueHandler", getAllStockValueHandler)
+
+	//getAllSalesValue Handler
+	getAllSalesValueHandler := &handler.GetAllSalesValueHandler{}
+	getAllSalesValueHandler.SetContainer(s.sc)
+	getAllSalesValueHandler.Handle = getAllSalesValueHandler.GetAllSalesValueHandle
+	s.sc.RegisterService("getAllSalesValueHandler", getAllSalesValueHandler)
 
 	//perform injection
 	if err := s.sc.Ready(); err != nil {

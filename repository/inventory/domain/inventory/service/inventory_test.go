@@ -4,6 +4,7 @@ package service_test
 import (
 	"ijah-inventory/repository/inventory/domain/inventory/model"
 	"ijah-inventory/repository/inventory/domain/inventory/service"
+	"reflect"
 	"time"
 
 	"os"
@@ -11,6 +12,16 @@ import (
 )
 
 var inventoryService *service.Inventory
+
+//getType is a function to get type of something (without package name)
+//see: https://stackoverflow.com/questions/35790935/using-reflection-in-go-to-get-the-name-of-a-struct
+func getType(myvar interface{}) string {
+	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
+		return "*" + t.Elem().Name()
+	} else {
+		return t.Name()
+	}
+}
 
 func TestMain(m *testing.M) {
 	//test setup
@@ -57,7 +68,7 @@ func TestAddSKU(t *testing.T) {
 }
 
 func TestUpdateSKU(t *testing.T) {
-	err := inventoryService.UpdateSKU("dummySku", 500, 60000, 65000)
+	err := inventoryService.UpdateSKU("dummySku", 250, 50000, 55000)
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
 			t.Errorf("expected nil but got %v", err)
@@ -70,7 +81,10 @@ func TestCreateSale(t *testing.T) {
 		Sku:      "dummySku",
 		Quantity: 10,
 	}
-	ok, err := inventoryService.CreateSale("newInvoice01", "dummy new invoice", saleItem)
+	saleItemSlice := make([]service.SaleItem, 0)
+	saleItemSlice = append(saleItemSlice, saleItem)
+
+	ok, err := inventoryService.CreateSale("newInvoice01", "dummy new invoice", saleItemSlice)
 
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
@@ -103,7 +117,6 @@ func TestUpdateSale(t *testing.T) {
 
 func TestGetAllStockValue(t *testing.T) {
 	stockValue, err := inventoryService.GetAllStockValue()
-
 	t.Run("GetAllStockValue return must be stock value object", func(t *testing.T) {
 		if getType(stockValue) != "*StockValue" {
 			t.Errorf("expected *StockValue but got %v", getType(stockValue))

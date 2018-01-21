@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/go-errors/errors"
-
-	"reflect"
 )
 
 //Mock object for stock datamapper
@@ -35,10 +33,10 @@ func (m *MockStockMapper) FindByID(id string) (model.Model, *errors.Error) {
 }
 
 func (m *MockStockMapper) FindAll() ([]model.Model, *errors.Error) {
-	var modelSlice []model.Model
-	modelSlice = append(modelSlice, dummyStockModel1)
-	modelSlice = append(modelSlice, dummyStockModel2)
-	return modelSlice, nil
+	var stockSlice []model.Model
+	stockSlice = append(stockSlice, dummyStockModel1)
+	stockSlice = append(stockSlice, dummyStockModel2)
+	return stockSlice, nil
 }
 
 func (m *MockStockMapper) Insert(model model.Model) *errors.Error {
@@ -224,14 +222,4 @@ func (m *MockSalesMapper) Commit() *errors.Error {
 
 func (m *MockSalesMapper) Rollback() *errors.Error {
 	return nil
-}
-
-//getType is a function to get type of something (without package name)
-//see: https://stackoverflow.com/questions/35790935/using-reflection-in-go-to-get-the-name-of-a-struct
-func getType(myvar interface{}) string {
-	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
-		return "*" + t.Elem().Name()
-	} else {
-		return t.Name()
-	}
 }
