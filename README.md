@@ -12,7 +12,7 @@ Prequisites:
 ------------
 1. Golang
 2. Sqlite3
-3. Godep (install from https://github.com/tools/godep)
+3. dep (install from https://github.com/golang/dep)
 
 Installation steps
 ------------------
