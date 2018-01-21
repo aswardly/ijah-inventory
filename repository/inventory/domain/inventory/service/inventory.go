@@ -160,6 +160,8 @@ func (i *Inventory) CreateSale(invoiceNo, note string, items []SaleItem) (bool, 
 	newSale.Items = newSalesItems
 
 	//save new sale (requires db transaction)
+	//TODO: Refactor this, this is wrong because the transaction is potentially not isolated
+	//the datamapper method Insert() performs query not on the db.Tx object, but possibly on physically different connection
 	tx, err := i.DB.Begin()
 	if err != nil {
 		return false, errors.Wrap(err, 0)
@@ -225,7 +227,8 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 	}
 	//update sale (requires db transaction)
 	foundSaleObj.Status = status
-
+	//TODO: Refactor this, this is wrong because the transaction is potentially not isolated
+	//the datamapper method Save() performs query not on the db.Tx object, but possibly on physically different connection
 	tx, errt := i.DB.Begin()
 	if errt != nil {
 		return false, errors.Wrap(err, 0)

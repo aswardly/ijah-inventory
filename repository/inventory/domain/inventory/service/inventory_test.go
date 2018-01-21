@@ -2,6 +2,8 @@
 package service_test
 
 import (
+	"database/sql"
+	"fmt"
 	"ijah-inventory/repository/inventory/domain/inventory/model"
 	"ijah-inventory/repository/inventory/domain/inventory/service"
 
@@ -9,9 +11,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	sqlMock "github.com/DATA-DOG/go-sqlmock"
 )
 
 var inventoryService, failedInventoryService, successfulCreateSaleInventoryService *service.Inventory
+var dummyDb *sql.DB
+var dbMock sqlMock.Sqlmock
 
 //getType is a function to get type of something (without package name)
 //see: https://stackoverflow.com/questions/35790935/using-reflection-in-go-to-get-the-name-of-a-struct
@@ -26,11 +32,15 @@ func getType(myvar interface{}) string {
 func TestMain(m *testing.M) {
 	//test setup
 
+	//mock sql
+	dummyDb, dbMock, _ = sqlMock.New()
+
 	//successful case inventory service object
 	inventoryService = &service.Inventory{
 		StockDatamapper:    &MockStockMapper{},
 		PurchaseDatamapper: &MockPurchaseMapper{},
 		SalesDatamapper:    &MockSalesMapper{},
+		DB:                 dummyDb, //Note: do not use a *sql.DB that connects to production database
 	}
 
 	//failed case inventory service object
@@ -38,6 +48,7 @@ func TestMain(m *testing.M) {
 		StockDatamapper:    &MockFailedStockMapper{},
 		PurchaseDatamapper: &MockFailedPurchaseMapper{},
 		SalesDatamapper:    &MockFailedSalesMapper{},
+		DB:                 dummyDb, //Note: do not use a *sql.DB that connects to production database
 	}
 
 	//special case for createSale (combination of successful and failed datamapper)
@@ -45,6 +56,7 @@ func TestMain(m *testing.M) {
 		StockDatamapper:    &MockStockMapper{},
 		PurchaseDatamapper: &MockFailedPurchaseMapper{},
 		SalesDatamapper:    &MockCreateSalesMapper{},
+		DB:                 dummyDb, //Note: do not use a *sql.DB that connects to production database
 	}
 
 	//run tests
@@ -111,6 +123,8 @@ func TestAddSKU(t *testing.T) {
 
 func TestUpdateSKU(t *testing.T) {
 	//successful case
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
 	err := inventoryService.UpdateSKU("dummySku", 250, 50000, 55000)
 	t.Run("err return must be nil", func(t *testing.T) {
 		if err != nil {
@@ -119,6 +133,8 @@ func TestUpdateSKU(t *testing.T) {
 	})
 
 	//failed case
+	dbMock.ExpectBegin()
+	dbMock.ExpectRollback()
 	failedErr := failedInventoryService.UpdateSKU("dummySku", 250, 50000, 55000)
 	t.Run("Failed err returned must type must be correct", func(t *testing.T) {
 		if getType(failedErr) != "*Error" {
@@ -136,20 +152,25 @@ func TestCreateSale(t *testing.T) {
 	saleItemSlice := make([]service.SaleItem, 0)
 	saleItemSlice = append(saleItemSlice, saleItem)
 
-	ok, err := successfulCreateSaleInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
-
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
+	ok, errt := successfulCreateSaleInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
+	fmt.Printf("%+v\n", errt)
+	fmt.Printf("%+v\n", ok)
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)
 		}
 	})
 	t.Run("err return must be nil", func(t *testing.T) {
-		if err != nil {
-			t.Errorf("expected nil but got %v", err)
+		if errt != nil {
+			t.Errorf("expected nil but got %v", errt)
 		}
 	})
 
 	//failed case
+	dbMock.ExpectBegin()
+	dbMock.ExpectRollback()
 	failedOk, failedErr := failedInventoryService.CreateSale("newInvoiceId", "dummy new invoice", saleItemSlice)
 	t.Run("Failed return must be true", func(t *testing.T) {
 		if false != failedOk {
@@ -165,7 +186,10 @@ func TestCreateSale(t *testing.T) {
 
 func TestUpdateSale(t *testing.T) {
 	//successful case
+	dbMock.ExpectBegin()
+	dbMock.ExpectCommit()
 	ok, err := inventoryService.UpdateSale("dummyInvoice", model.SalesStatusDone)
+	fmt.Printf("errx :%+v\n", err)
 	t.Run("return must be true", func(t *testing.T) {
 		if true != ok {
 			t.Errorf("expected true but got %v", ok)
@@ -178,6 +202,8 @@ func TestUpdateSale(t *testing.T) {
 	})
 
 	//failed case
+	dbMock.ExpectBegin()
+	dbMock.ExpectRollback()
 	failedOk, failedErr := failedInventoryService.UpdateSale("dummyInvoice", model.SalesStatusDone)
 	t.Run("Failed return must be true", func(t *testing.T) {
 		if false != failedOk {
@@ -270,12 +296,13 @@ func TestGetAllSalesValue(t *testing.T) {
 			t.Errorf("expected *SaleValue but got %v", getType(saleValue))
 		}
 	})
-
+	//TODO: this will fail since type assertion from datamapper.DataMapper to *datamapper.Sale in the inventory service fails, since we initiate the sales datamapper with a mock (type MockSSaleMapper)
 	t.Run("err returned must be nil", func(t *testing.T) {
 		if errs != nil {
 			t.Errorf("expected nil but got %v", errs)
 		}
 	})
+
 	t.Run("check sale value properties", func(t *testing.T) {
 		if saleValue.TotalQuantity != 6 {
 			t.Errorf("expected totalQuantity %v but got %v", 34, saleValue.TotalQuantity)
