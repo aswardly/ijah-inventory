@@ -118,4 +118,17 @@ func (s *Server) routeSetup() {
 		panic("failed asserting 'getAllStockValueHandler'")
 	}
 	getAllSalesValueRoute.Handler(getAllSalesValueHandler)
+
+	//exportStockCSV route
+	exportStockCSVRoute := s.router.Path("/exportStockCSV")
+	exportStockCSVRoute.Methods("GET")
+	serviceObj, found = s.sc.GetService("exportStockCSVHandler")
+	if false == found {
+		panic("service 'exportStockCSVHandler' not found")
+	}
+	exportStockCSVHandler, ok := serviceObj.(*handler.ExportStockCSVHandler)
+	if false == ok {
+		panic("failed asserting 'exportStockCSVHandler'")
+	}
+	exportStockCSVRoute.Handler(exportStockCSVHandler)
 }

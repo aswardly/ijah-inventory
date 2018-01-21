@@ -112,6 +112,12 @@ func (s *Server) setup() {
 	getAllSalesValueHandler.Handle = getAllSalesValueHandler.GetAllSalesValueHandle
 	s.sc.RegisterService("getAllSalesValueHandler", getAllSalesValueHandler)
 
+	//exportStockCSV Handler
+	exportStockCSVHandler := &handler.ExportStockCSVHandler{}
+	exportStockCSVHandler.SetContainer(s.sc)
+	exportStockCSVHandler.Handle = exportStockCSVHandler.ExportStockCSVHandle
+	s.sc.RegisterService("exportStockCSVHandler", exportStockCSVHandler)
+
 	//perform injection
 	if err := s.sc.Ready(); err != nil {
 		panic(fmt.Sprintf("Service initialization failed with error: %+v", err))
