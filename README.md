@@ -288,6 +288,6 @@ Additional Features
 ===================
 Report CSV Export
 -----------------
-Access the following URLs for downloading a generated reposrt in CSV format:
-- http://127.0.0.1/exportStockCSV : for CSV data about stock valuation
-- http://127.0.0.1/exportSalesCSV : for CSV data about sales valuation
+Access the following URLs for downloading a generated report in CSV format:
+- http://127.0.0.1:8123/exportStockCSV : for CSV data about stock valuation
+- http://127.0.0.1:8123/exportSalesCSV : for CSV data about sales valuation
