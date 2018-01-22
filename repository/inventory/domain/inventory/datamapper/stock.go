@@ -131,6 +131,7 @@ func (s *Stock) Insert(stockModel model.Model) *errors.Error {
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(stockModelObj.Sku, stockModelObj.Name, stockModelObj.Quantity, stockModelObj.BuyPrice, stockModelObj.SellPrice)
 	if err != nil {
 		return errors.Wrap(err, 0)
@@ -152,6 +153,29 @@ func (s *Stock) Update(stockModel model.Model) *errors.Error {
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	defer stmt.Close()
+	_, err = stmt.Exec(stockModelObj.Sku, stockModelObj.Name, stockModelObj.Quantity, stockModelObj.BuyPrice, stockModelObj.SellPrice, stockModelObj.Sku)
+	if err != nil {
+		return errors.Wrap(err, 0)
+	}
+	return nil
+}
+
+//UpdateWithTx is a function for updating record (using passed transaction handler)
+func (s *Stock) UpdateWithTx(stockModel model.Model, tx *sql.Tx) *errors.Error {
+	stockModelObj, ok := stockModel.(*model.Stock)
+	if false == ok {
+		return errors.Wrap(fmt.Errorf("Failed asserting to *model.Stock"), 0)
+	}
+	_, errs := s.FindByID(stockModel.GetID())
+	if errs != nil && errs.Err == sql.ErrNoRows {
+		return errors.Wrap(fmt.Errorf("cannot update, model with id: %v doesn't exist", stockModel.GetID()), 0)
+	}
+	stmt, err := tx.Prepare("UPDATE stock SET SKU=?, NAME=?, QUANTITY=?, BUY_PRICE=?, SELL_PRICE=? WHERE SKU=?")
+	if err != nil {
+		return errors.Wrap(err, 0)
+	}
+	defer stmt.Close()
 	_, err = stmt.Exec(stockModelObj.Sku, stockModelObj.Name, stockModelObj.Quantity, stockModelObj.BuyPrice, stockModelObj.SellPrice, stockModelObj.Sku)
 	if err != nil {
 		return errors.Wrap(err, 0)
@@ -173,6 +197,7 @@ func (s *Stock) Delete(stockModel model.Model) *errors.Error {
 	if err != nil {
 		return errors.Wrap(err, 0)
 	}
+	defer stmt.Close()
 	_, err = stmt.Exec(stockModelObj.Sku)
 	if err != nil {
 		return errors.Wrap(err, 0)

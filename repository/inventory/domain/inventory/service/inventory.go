@@ -187,9 +187,13 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 		return false, errors.Wrap(fmt.Errorf("Failed asserting returned model"), 0)
 	}
 
-	//TODO: Refactor this, the latest idea was injecting the *sql.DB object to this service struct, so this service can directly create a *sql.Tx object for handlng transaction,
-	//but this is wrong because the transaction is potentially not isolated due to the datamapper method Save() possibly performs query not on the db.Tx object, but on physically different connection
-	//see: http://go-database-sql.org/modifying.html
+	stockMapper, ok := i.StockDatamapper.(*datamapper.Stock)
+	if false == ok {
+		return false, errors.Wrap(fmt.Errorf("Failed asserting stock mapper"), 0)
+	}
+
+	//TODO: findan effective way of preventing "database is locked" error
+	//this might be related: https://github.com/mattn/go-sqlite3/issues/274
 	tx, errt := i.DB.Begin()
 	if errt != nil {
 		return false, errors.Wrap(err, 0)
@@ -198,7 +202,7 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 	if status == model.SalesStatusDone && foundSaleObj.Status != model.SalesStatusDone {
 		for _, val := range foundSaleObj.Items {
 			//update stock quantity
-			saleItem, err := i.StockDatamapper.FindByID(val.Sku)
+			saleItem, err := stockMapper.FindByID(val.Sku)
 			if err != nil {
 				return false, errors.Wrap(err, 0)
 			}
@@ -211,13 +215,10 @@ func (i *Inventory) UpdateSale(invoiceNo, status string) (bool, *errors.Error) {
 			if saleItemObj.Quantity < val.Quantity {
 				return false, errors.Wrap(fmt.Errorf("Sku: %v doesn't have enough stock", saleItemObj.Sku), 0)
 			}
-			//update stock
-			//TODO: Problem: the transaction is performed not only on sales datamapper, but also stock datamapper (need an isolated *sql.Tx crossing different datamappers)
-			//Datamapper refactoring needed
 			saleItemObj.Quantity -= val.Quantity
-			err = i.StockDatamapper.Update(saleItemObj)
+			err = stockMapper.UpdateWithTx(saleItemObj, tx)
 			if err != nil {
-				return false, errors.Wrap(fmt.Errorf("Sku: %v stock update failed", saleItemObj.Sku), 0)
+				return false, errors.Wrap(fmt.Errorf("Sku: %v stock update failed: %v", saleItemObj.Sku, err), 0)
 			}
 		}
 	}

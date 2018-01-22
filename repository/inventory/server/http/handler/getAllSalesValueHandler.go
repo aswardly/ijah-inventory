@@ -36,8 +36,6 @@ func (h *GetAllSalesValueHandler) GetAllSalesValueHandle(w http.ResponseWriter, 
 	}
 
 	saleValueObj, errs := h.InventoryService.GetAllSalesValue(startTimeObj, endTimeObj)
-	fmt.Printf("saleObj is %+v\n", saleValueObj)
-	fmt.Printf("err is %+v\n", errs)
 
 	if errs != nil {
 		return composeError(errs)
